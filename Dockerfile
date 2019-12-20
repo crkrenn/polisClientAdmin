@@ -1,14 +1,6 @@
-FROM node:10.15.0
+FROM node:12.13.1
 
-RUN npm install -g gulp
-RUN npm install gulp
-RUN npm link gulp
+RUN npm install -g gulp && \
+    npm install
 
-ADD package*.json .
-RUN npm install
-
-ADD polis.config.template.js polis.config.js
-
-ADD . .
-
-RUN gulp dist
+# RUN gulp dist
