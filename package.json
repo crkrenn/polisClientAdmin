@@ -13,7 +13,8 @@
     "build": "npm run build:webpack",
     "deploy:prod": "./deploy_TO_PRODUCTION",
     "deploy:preprod": "./deployPreprod",
-    "start": "gulp dist",
+    "start": "node dev-server.js",
+    "start-gulp": "gulp dist",
     "start-old": "./x",
     "lint": "eslint src",
     "test": "jest"
