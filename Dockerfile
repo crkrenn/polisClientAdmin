@@ -14,3 +14,14 @@ COPY . .
 #CMD npm start
 
 CMD node dev-server.js
+
+RUN if [ "$BUILD_S3" = "true" ]; \
+    then echo "building static image..."; \
+    gulp dist; \
+    fi
+
+#CMD if [ "$RUN_S3" != "true" ]; then echo "running server..."; node dev-server.js; else echo "not running server"; fi
+
+CMD [ "node", "dev-server.js" ]
+
+#CMD gulp dist

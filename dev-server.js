@@ -66,11 +66,11 @@ app.get('*', function(req, res) {
   res.status(200).send(html);
 });
 
-app.listen(polisConfig.ADMIN_PORT, polisConfig.ADMIN_HOST, function(err) {
+app.listen(process.env.ADMIN_PORT, process.env.ADMIN_HOST, function(err) {
   if (err) {
     console.log("error", err);
     return;
   }
 
-  console.log('Listening at http://'+polisConfig.ADMIN_HOST+':'+polisConfig.ADMIN_PORT);
+  console.log('Listening at http://'+process.env.ADMIN_HOST+':'+process.env.ADMIN_PORT);
 });
