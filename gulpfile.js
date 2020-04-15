@@ -4,13 +4,24 @@ var _ = require('lodash');
 var exec = require('child_process').exec;
 var gulp = require('gulp');
 var isTrue = require('boolean');
-var s3 = require('gulp-s3');
+var fs = require('fs');
+
+if (isTrue(process.env.USE_GULP_S3)) {
+    var s3 = require('gulp-s3');
+}
+else {
+    var creds = {
+	accessKeyId:    process.env.AWS_ACCESS_KEY_ID,
+	secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+	region: process.env.AWS_REGION
+    }
+    var s3 = require('gulp-s3-upload')(creds);
+}
 var rename = require('gulp-rename');
 var glob = require('glob');
 var gzip = require('gulp-gzip');
 var path = require('path');
 var Promise = require('bluebird');
-var fs = require('fs');
 var rimraf = require("rimraf");
 var runSequence = require('run-sequence');
 var scp = require('gulp-scp2');
@@ -231,10 +242,18 @@ gulp.task('deploy_TO_PRODUCTION', [
 ], function() {
 
   var uploader;
-  if ('s3' === polisConfig.UPLOADER) {
-    uploader = s3uploader({
-      bucket: s3Subdir,
-    });
+    if ('s3' === polisConfig.UPLOADER) {
+	if (isTrue(process.env.USE_GULP_S3)) {
+	    console.log('using gulp-s3');
+	    uploader = s3uploaderGulpS3({
+		"bucket": s3Subdir,
+	    });
+	} else {
+	    console.log('using gulp-s3-upload');
+	    uploader = s3uploaderGulpS3Upload({
+		Bucket: s3Subdir,
+	    });
+	}
   }
   if ('scp' === polisConfig.UPLOADER) {
     uploader = scpUploader({
@@ -253,11 +272,19 @@ gulp.task('deploy_TO_PRODUCTION', [
 
 function doUpload() {
   var uploader;
-  if ('s3' === polisConfig.UPLOADER) {
-    uploader = s3uploader({
-      bucket: s3Subdir,
-    });
-  }
+    if ('s3' === polisConfig.UPLOADER) {
+	if (isTrue(process.env.USE_GULP_S3)) {
+	    console.log('using gulp-s3');
+	    uploader = s3uploaderGulpS3({
+		bucket: s3Subdir,
+	    });
+	} else {
+	    console.log('using gulp-s3-upload');
+	    uploader = s3uploaderGulpS3Upload({
+		bucket: s3Subdir,
+	    });
+	}
+    };
   if ('scp' === polisConfig.UPLOADER) {
    uploader = scpUploader({
       // subdir: "cached",
@@ -298,12 +325,58 @@ gulp.task('fontsProd', [
   });
 });
 
-
-
-
-
+// not working...
 function s3uploader(params) {
-  var creds = JSON.parse(fs.readFileSync('.polis_s3_creds_client.json'));
+    var s3uploaderVar;
+    if (isTrue(process.env.USE_GULP_S3)) {
+	s3uploaderVar = s3uploaderGulpS3(params)
+    } else {
+	s3uploaderVar = s3uploaderGulpS3Upload(params)
+    }
+    return deploy(s3uploaderVar)
+}
+
+function s3uploaderGulpS3(params) {
+    if(fs.existsSync('.polis_s3_creds_client.json')) {
+	var creds = JSON.parse(fs.readFileSync('.polis_s3_creds_client.json')); }
+    else {
+	var creds = {
+	    "key":    process.env.AWS_ACCESS_KEY_ID,
+	    "secret": process.env.AWS_SECRET_ACCESS_KEY,
+	    "region": process.env.AWS_REGION
+	}
+    }
+
+  creds = _.extend(creds, params);
+  let f = function(o) {
+    let oo = _.extend({
+      delay: 1000,
+      makeUploadPath: function(file) {
+        let r = staticFilesPrefix + ".*";
+        let match = file.path.match(RegExp(r));
+        console.log(file);
+        console.log(file.path);
+        console.log(r, match);
+
+        let fixed = (_.isString(o.subdir) && match && match[0]) ? match[0] : path.basename(file.path);
+        console.log("upload path " + fixed);
+        return fixed;
+      },
+    }, o);
+    if (oo.headers) {
+      delete oo.headers['Content-Type']; // s3 figures this out
+    }
+
+    return s3(creds, oo);
+  };
+  f.needsHeadersJson = false;
+  return f;
+}
+
+function s3uploaderGulpS3Upload(params) {
+    var creds = {
+	ACL:    'public-read'
+    }
   creds = _.extend(creds, params);
   let f = function(o) {
     let oo = _.extend({
